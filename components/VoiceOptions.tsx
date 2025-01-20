@@ -1,37 +1,51 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 
-interface VoiceOptionsProps {
-  onSelectVoice: (voice: string) => void
+interface Voice {
+  name: string
+  value: string
 }
 
-const voices = [
-  { id: 'adam', name: 'Adam' },
-  { id: 'bella', name: 'Bella' },
-  { id: 'charlie', name: 'Charlie' },
+const voices: Voice[] = [
+  { name: 'Voice 1', value: 'voice1' },
+  { name: 'Voice 2', value: 'voice2' },
+  // Add more voices as needed
 ]
 
-export default function VoiceOptions({ onSelectVoice }: VoiceOptionsProps) {
+interface VoiceOptionsProps {
+  // Remove the function prop and use an action ID instead
+  defaultVoice?: string
+}
+
+export function VoiceOptions({ defaultVoice = voices[0].value }: VoiceOptionsProps) {
+  const [selectedVoice, setSelectedVoice] = useState<string>(defaultVoice)
+
+  const handleVoiceChange = (voice: string) => {
+    setSelectedVoice(voice)
+    // Dispatch a custom event instead of using a callback
+    const event = new CustomEvent('voiceSelected', { detail: voice })
+    window.dispatchEvent(event)
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex flex-wrap justify-center gap-4 mt-8"
-    >
-      {voices.map((voice) => (
-        <motion.div key={voice.id} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button
-            onClick={() => onSelectVoice(voice.id)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-300"
-          >
+    <div className="flex flex-col space-y-2">
+      <label htmlFor="voice-select" className="text-sm font-medium text-gray-700">
+        Select Voice
+      </label>
+      <select
+        id="voice-select"
+        value={selectedVoice}
+        onChange={(e) => handleVoiceChange(e.target.value)}
+        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+      >
+        {voices.map((voice) => (
+          <option key={voice.value} value={voice.value}>
             {voice.name}
-          </Button>
-        </motion.div>
-      ))}
-    </motion.div>
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
 

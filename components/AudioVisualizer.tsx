@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Track } from 'livekit-client'
+import { Track, LocalAudioTrack, RemoteTrack } from 'livekit-client'
 
 interface AudioVisualizerProps {
   isPlaying: boolean
@@ -23,82 +23,82 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
     if (!ctx) return
 
     // Create audio context if it doesn't exist
-    if (!audioContextRef.current) {
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
       audioContextRef.current = new AudioContext()
+      console.log('Created new AudioContext')
     }
 
     const analyser = audioContextRef.current.createAnalyser()
     analyserRef.current = analyser
-    analyser.fftSize = 512 // Increased for more bars
-    analyser.smoothingTimeConstant = 0.8 // Smoother transitions
-    const bufferLength = analyser.frequencyBinCount
-    const dataArray = new Uint8Array(bufferLength)
+    analyser.fftSize = 256 // Reduced for better performance
+    analyser.smoothingTimeConstant = 0.6 // More responsive
 
-    // Connect audio track to analyser if available
+    // Connect audio source based on track
     if (audioTrack?.mediaStream) {
-      console.log('Setting up audio track:', {
-        trackId: audioTrack.sid,
-        state: audioTrack.streamState,
-        muted: audioTrack.isMuted,
-        source: audioTrack.source,
-      })
+      try {
+        // Always resume context
+        audioContextRef.current.resume().catch(console.error)
 
-      // Disconnect previous source if it exists
-      if (sourceRef.current) {
-        sourceRef.current.disconnect()
+        // Disconnect previous source if exists
+        if (sourceRef.current) {
+          sourceRef.current.disconnect()
+        }
+
+        // Create and connect new source from the track's media stream
+        sourceRef.current = audioContextRef.current.createMediaStreamSource(audioTrack.mediaStream)
+        sourceRef.current.connect(analyser)
+
+        // For remote tracks (guests), connect to destination for playback
+        if (audioTrack instanceof RemoteTrack) {
+          // Create a gain node to control volume
+          const gainNode = audioContextRef.current.createGain()
+          gainNode.gain.value = 1.0 // Adjust volume as needed
+          
+          sourceRef.current.connect(gainNode)
+          gainNode.connect(audioContextRef.current.destination)
+          
+          console.log('Connected remote track to audio output');
+        }
+
+        console.log('Audio setup complete:', {
+          contextState: audioContextRef.current.state,
+          isRemoteTrack: audioTrack instanceof RemoteTrack,
+          isLocalTrack: audioTrack instanceof LocalAudioTrack,
+          mediaStreamActive: audioTrack.mediaStream.active,
+          analyzerConnected: true
+        })
+
+      } catch (error) {
+        console.error('Error setting up audio visualization:', error)
       }
-
-      // Create and connect new source
-      sourceRef.current = audioContextRef.current.createMediaStreamSource(audioTrack.mediaStream)
-      sourceRef.current.connect(analyser)
-
-      // Attach track to audio element for playback
-      const audioElement = audioTrack.attach()
-      document.body.appendChild(audioElement)
-      audioElement.style.display = 'none'
-      audioElement.muted = false // Ensure audio is not muted
-      audioElement.volume = 1.0 // Set volume to maximum
-
-      // Create a media stream destination for visualization
-      const visualizationDest = audioContextRef.current.createMediaStreamDestination()
-      sourceRef.current.connect(visualizationDest)
-
-      // Create a new audio element for visualization
-      const visualizationElement = new Audio()
-      visualizationElement.srcObject = visualizationDest.stream
-      visualizationElement.play().catch(console.error)
-
-      // Log track attachment
-      console.log('Attached audio track to element:', {
-        trackId: audioTrack.sid,
-        elementId: audioElement.id,
-        muted: audioElement.muted,
-        volume: audioElement.volume,
-        visualizationActive: true
-      })
     }
 
-    // Animation function
+    // Modified animation function for better visibility
     const draw = () => {
       if (!canvas || !ctx || !analyser) return
 
       animationFrameRef.current = requestAnimationFrame(draw)
 
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
       analyser.getByteFrequencyData(dataArray)
 
-      ctx.fillStyle = 'rgb(17, 24, 39)' // bg-gray-900
+      // Clear with semi-transparent background for trail effect
+      ctx.fillStyle = 'rgba(17, 24, 39, 0.3)'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      const barWidth = (canvas.width / bufferLength) * 2.5 // Adjusted for more bars
-      let barHeight: number
+      const barWidth = (canvas.width / bufferLength) * 2.5
       let x = 0
 
       for (let i = 0; i < bufferLength; i++) {
-        barHeight = isPlaying ? (dataArray[i] / 255) * canvas.height : 2
+        // Amplify the visualization
+        const barHeight = isPlaying ? 
+          Math.max((dataArray[i] / 255) * canvas.height * 1.5, 4) : 
+          2
 
         const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0)
-        gradient.addColorStop(0, '#dc2626') // red-600
-        gradient.addColorStop(1, '#ef4444') // red-500
+        gradient.addColorStop(0, '#dc2626')
+        gradient.addColorStop(1, '#ef4444')
 
         ctx.fillStyle = gradient
         ctx.beginPath()
@@ -109,7 +109,6 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
       }
     }
 
-    // Start animation
     draw()
 
     return () => {
@@ -119,19 +118,14 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
       if (sourceRef.current) {
         sourceRef.current.disconnect()
       }
-      // Clean up audio element and track
-      if (audioTrack) {
-        console.log('Detaching audio track:', audioTrack.sid)
-        audioTrack.detach()
-      }
     }
   }, [isPlaying, audioTrack])
 
   return (
-    <div className="w-full h-32"> {/* Made taller */}
+    <div className="w-full h-32">
       <canvas
         ref={canvasRef}
-        width={600} /* Increased resolution */
+        width={600}
         height={128}
         className="w-full h-full rounded-lg"
       />

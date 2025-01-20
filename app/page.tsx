@@ -1,12 +1,13 @@
-import VoicePlayground from '@/components/VoicePlayground'
-import Script from 'next/script'
+import Navigation from "@/components/navigation"
+import Hero from "@/components/hero"
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gray-900">
-      <Script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.min.js" />
-      <h1 className="text-4xl font-bold mb-8 text-white">AI Voice Playground</h1>
-      <VoicePlayground />
+    <main className="min-h-screen bg-black">
+      <div className="max-w-7xl mx-auto">
+        <Navigation />
+        <Hero />
+      </div>
     </main>
   )
 }

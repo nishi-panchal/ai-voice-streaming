@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useVoiceInteraction } from '@/hooks/useVoiceInteraction'
 import { AudioVisualizer } from './AudioVisualizer'
@@ -71,6 +71,69 @@ export default function VoicePlayground() {
       setError(error instanceof Error ? error.message : 'Failed to join room')
     }
   }
+
+  // Enhance the getRemoteAudioTrack function with better logging
+  const getRemoteAudioTrack = useCallback(() => {
+    if (!room) return null;
+    
+    console.log('Looking for remote tracks:', {
+      participants: Array.from(room.remoteParticipants.values()).map(p => ({
+        identity: p.identity,
+        tracks: Array.from(p.getTrackPublications()).map(t => ({
+          sid: t.trackSid,
+          name: t.trackName,
+          kind: t.kind,
+          source: t.source,
+          isSubscribed: t.isSubscribed
+        }))
+      }))
+    });
+    
+    const remoteParticipants = Array.from(room.remoteParticipants.values());
+    console.log('Looking for audio track in participants:', {
+      participantCount: remoteParticipants.length,
+      participants: remoteParticipants.map(p => ({
+        identity: p.identity,
+        trackCount: Array.from(p.getTrackPublications()).length
+      }))
+    });
+    
+    for (const participant of remoteParticipants) {
+      const publications = Array.from(participant.getTrackPublications());
+      
+      // Log all available tracks
+      console.log('Available tracks for participant:', {
+        identity: participant.identity,
+        tracks: publications.map(pub => ({
+          kind: pub.kind,
+          source: pub.source,
+          name: pub.trackName,
+          sid: pub.trackSid,
+          isSubscribed: pub.isSubscribed
+        }))
+      });
+      
+      // Modified track search - less restrictive
+      const audioPublication = publications.find(pub => 
+        pub.kind === Track.Kind.Audio && 
+        pub.isSubscribed && 
+        pub.track // Ensure track exists
+      );
+
+      if (audioPublication?.track) {
+        console.log('Found remote audio track:', {
+          sid: audioPublication.trackSid,
+          isSubscribed: audioPublication.isSubscribed,
+          track: audioPublication.track,
+          name: audioPublication.trackName
+        });
+        
+        return audioPublication.track;
+      }
+    }
+    console.log('No suitable audio track found');
+    return null;
+  }, [room]);
 
   if (!room) {
     return (
@@ -152,6 +215,14 @@ export default function VoicePlayground() {
       </motion.div>
     )
   }
+
+  // Use it in your render
+  const remoteAudioTrack = getRemoteAudioTrack();
+  console.log('Audio visualizer state:', {
+    isHost,
+    hasRemoteTrack: !!remoteAudioTrack,
+    isPlaying: isHost ? isSpeaking : !!remoteAudioTrack
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-4">
@@ -235,18 +306,8 @@ export default function VoicePlayground() {
               <Card className="bg-black/20 backdrop-blur-xl border-gray-800">
                 <CardContent className="p-6">
                   <AudioVisualizer 
-                    isPlaying={isSpeaking} 
-                    audioTrack={isHost ? getAudioTrack() : (
-                      participants
-                        .find(p => !isHost)
-                        ?.getTrackPublications()
-                        .find(pub => 
-                          pub.kind === Track.Kind.Audio && 
-                          pub.source === Track.Source.Microphone &&
-                          pub.trackName === 'synthesized_speech'
-                        )
-                        ?.track || null
-                    )}
+                    isPlaying={isHost ? isSpeaking : !!remoteAudioTrack}
+                    audioTrack={isHost ? getAudioTrack() : remoteAudioTrack}
                   />
                 </CardContent>
               </Card>
