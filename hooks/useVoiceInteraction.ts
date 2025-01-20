@@ -29,6 +29,7 @@ export function useVoiceInteraction() {
   const mainGainRef = useRef<GainNode | null>(null)
   const compressorRef = useRef<DynamicsCompressorNode | null>(null)
   const audioTrackRef = useRef<LocalAudioTrack | null>(null)
+  const [isHost, setIsHost] = useState(false)
 
   // Initialize audio context and nodes
   const initAudioContext = () => {
@@ -199,6 +200,9 @@ export function useVoiceInteraction() {
       try {
         await newRoom.connect(livekitUrl, token)
 
+        // Set host status based on whether we're creating a new room
+        setIsHost(newRoom.remoteParticipants.size === 0)
+
         setRoom(newRoom)
         updateParticipants(newRoom)
 
@@ -231,23 +235,105 @@ export function useVoiceInteraction() {
     }
 
     // Add event listeners to track speech status
-    utterance.onstart = () => {
+    utterance.onstart = async () => {
       console.log('Started speaking')
       setIsSpeaking(true)
+
+      // Create and publish audio track if we're the host
+      if (isHost && room?.localParticipant) {
+        try {
+          if (!audioTrackRef.current) {
+            // Create audio context and destination for speech synthesis
+            const { context, destination, mainGain } = initAudioContext();
+            
+            // Create a custom audio track from the destination stream
+            const customTrack = await createLocalAudioTrack({
+              // Disable processing since we're using synthetic audio
+              noiseSuppression: false,
+              echoCancellation: false,
+              autoGainControl: false
+            });
+
+            // Connect audio nodes
+            mainGain.connect(context.destination); // For local monitoring
+            mainGain.connect(destination);
+
+            // Create an oscillator to ensure audio context is active
+            const oscillator = context.createOscillator();
+            oscillator.frequency.value = 0; // Silent
+            oscillator.connect(mainGain);
+            oscillator.start();
+            
+            // Publish track with voice optimized settings
+            const trackPublication = await room.localParticipant.publishTrack(customTrack, {
+              source: Track.Source.Microphone,
+              dtx: true, // Enable DTX for voice
+              red: true, // Enable redundancy for better quality
+              simulcast: false, // Disable simulcast since it's voice only
+              name: 'synthesized_speech' // Add name for easier identification
+            });
+            
+            audioTrackRef.current = customTrack;
+            console.log('Published voice track:', {
+              sid: trackPublication.trackSid,
+              kind: trackPublication.kind,
+              source: trackPublication.source,
+              name: trackPublication.trackName
+            });
+
+            // Force remote participants to subscribe
+            room.remoteParticipants.forEach(participant => {
+              console.log('Forcing subscription for participant:', participant.identity);
+              const pubs = participant.getTrackPublications();
+              pubs.forEach(pub => {
+                if (pub.kind === Track.Kind.Audio && pub instanceof RemoteTrackPublication) {
+                  console.log('Subscribing to track:', {
+                    sid: pub.trackSid,
+                    kind: pub.kind,
+                    isSubscribed: pub.isSubscribed
+                  });
+                  pub.setSubscribed(true);
+                }
+              });
+            });
+          } else {
+            console.log('Reusing existing track:', {
+              sid: audioTrackRef.current.sid,
+              kind: audioTrackRef.current.kind
+            });
+          }
+        } catch (error) {
+          console.error('Error publishing audio track:', error)
+        }
+      }
     }
 
-    utterance.onend = () => {
+    utterance.onend = async () => {
       console.log('Finished speaking')
       setIsSpeaking(false)
+
+      // Clean up audio track if we're the host
+      if (isHost && audioTrackRef.current) {
+        try {
+          await room?.localParticipant?.unpublishTrack(audioTrackRef.current)
+          audioTrackRef.current.stop()
+          audioTrackRef.current = null
+          console.log('Unpublished synthesized speech track')
+        } catch (error) {
+          console.error('Error unpublishing audio track:', error)
+        }
+      }
     }
 
     // Use a promise to ensure speech completes
     await new Promise((resolve, reject) => {
-      utterance.onend = resolve
+      utterance.onend = () => {
+        resolve(undefined)
+      }
       utterance.onerror = reject
       window.speechSynthesis.speak(utterance)
     })
-  }, [])
+  }, [room, isHost, initAudioContext])
 
   const generateVoice = useCallback(async (prompt: string) => {
     if (!room || !prompt) {
@@ -328,6 +414,10 @@ export function useVoiceInteraction() {
         dynacast: true
       })
       await newRoom.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token)
+
+      // Set host status based on whether we're creating a new room
+      setIsHost(newRoom.remoteParticipants.size === 0)
+
       setRoom(newRoom)
       updateParticipants(newRoom)
       initAudioContext()
@@ -368,13 +458,83 @@ export function useVoiceInteraction() {
   }, [room])
 
   const getAudioTrack = useCallback(() => {
-    if (!room?.localParticipant) return null
-    
-    const audioPublication = Array.from(room.localParticipant.getTrackPublications().values())
-      .find(pub => pub.kind === Track.Kind.Audio)
-    
-    return audioPublication?.track || null
-  }, [room])
+    if (!room) return null;
+
+    if (isHost) {
+      // For host: get local track
+      const publications = room.localParticipant?.getTrackPublications();
+      if (!publications) return null;
+      
+      const audioPublication = Array.from(publications.values())
+        .find((pub) => 
+          pub.kind === Track.Kind.Audio && 
+          pub.source === Track.Source.Microphone &&
+          pub.trackName === 'synthesized_speech'
+        );
+      console.log('Host audio track:', {
+        found: !!audioPublication?.track,
+        kind: audioPublication?.kind,
+        source: audioPublication?.source,
+        name: audioPublication?.trackName,
+        sid: audioPublication?.trackSid
+      });
+      return audioPublication?.track || null;
+    } else {
+      // For guest: get remote track from host
+      const remoteParticipants = Array.from(room.remoteParticipants.values());
+      console.log('Looking for host audio track in participants:', 
+        remoteParticipants.map(p => ({
+          identity: p.identity,
+          tracks: Array.from(p.getTrackPublications()).map(t => ({
+            kind: t.kind,
+            source: t.source,
+            name: t.trackName,
+            sid: t.trackSid,
+            isSubscribed: t.isSubscribed
+          }))
+        }))
+      );
+      
+      for (const participant of remoteParticipants) {
+        const publications = participant.getTrackPublications();
+        const audioPublication = Array.from(publications.values())
+          .find((pub) => {
+            const isAudioTrack = pub.kind === Track.Kind.Audio && 
+                               pub.source === Track.Source.Microphone &&
+                               pub.trackName === 'synthesized_speech';
+            console.log('Checking track:', {
+              kind: pub.kind,
+              source: pub.source,
+              name: pub.trackName,
+              sid: pub.trackSid,
+              isSubscribed: pub.isSubscribed,
+              isAudio: isAudioTrack
+            });
+            return isAudioTrack;
+          });
+
+        if (audioPublication?.track) {
+          console.log('Found remote audio track:', {
+            participant: participant.identity,
+            track: audioPublication.trackSid,
+            source: audioPublication.source,
+            name: audioPublication.trackName,
+            isSubscribed: audioPublication.isSubscribed
+          });
+          
+          // Ensure track is subscribed
+          if (audioPublication instanceof RemoteTrackPublication && !audioPublication.isSubscribed) {
+            console.log('Subscribing to track:', audioPublication.trackSid);
+            audioPublication.setSubscribed(true);
+          }
+          
+          return audioPublication.track;
+        }
+      }
+      console.log('No audio track found in remote participants');
+      return null;
+    }
+  }, [room, isHost]);
 
   return {
     connectToRoom,
@@ -387,7 +547,8 @@ export function useVoiceInteraction() {
     handleJoinRoom,
     handleLeaveRoom,
     handleSubmit,
-    getAudioTrack
+    getAudioTrack,
+    isHost
   }
 }
 

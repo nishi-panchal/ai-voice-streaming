@@ -240,7 +240,11 @@ export default function VoicePlayground() {
                       participants
                         .find(p => !isHost)
                         ?.getTrackPublications()
-                        .find(pub => pub.kind === Track.Kind.Audio)
+                        .find(pub => 
+                          pub.kind === Track.Kind.Audio && 
+                          pub.source === Track.Source.Microphone &&
+                          pub.trackName === 'synthesized_speech'
+                        )
                         ?.track || null
                     )}
                   />

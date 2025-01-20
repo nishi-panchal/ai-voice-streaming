@@ -37,9 +37,10 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
     // Connect audio track to analyser if available
     if (audioTrack?.mediaStream) {
       console.log('Setting up audio track:', {
-        id: audioTrack.sid,
+        trackId: audioTrack.sid,
         state: audioTrack.streamState,
-        muted: audioTrack.isMuted
+        muted: audioTrack.isMuted,
+        source: audioTrack.source,
       })
 
       // Disconnect previous source if it exists
@@ -55,6 +56,26 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
       const audioElement = audioTrack.attach()
       document.body.appendChild(audioElement)
       audioElement.style.display = 'none'
+      audioElement.muted = false // Ensure audio is not muted
+      audioElement.volume = 1.0 // Set volume to maximum
+
+      // Create a media stream destination for visualization
+      const visualizationDest = audioContextRef.current.createMediaStreamDestination()
+      sourceRef.current.connect(visualizationDest)
+
+      // Create a new audio element for visualization
+      const visualizationElement = new Audio()
+      visualizationElement.srcObject = visualizationDest.stream
+      visualizationElement.play().catch(console.error)
+
+      // Log track attachment
+      console.log('Attached audio track to element:', {
+        trackId: audioTrack.sid,
+        elementId: audioElement.id,
+        muted: audioElement.muted,
+        volume: audioElement.volume,
+        visualizationActive: true
+      })
     }
 
     // Animation function
@@ -98,8 +119,9 @@ export function AudioVisualizer({ isPlaying, audioTrack }: AudioVisualizerProps)
       if (sourceRef.current) {
         sourceRef.current.disconnect()
       }
-      // Clean up audio element
+      // Clean up audio element and track
       if (audioTrack) {
+        console.log('Detaching audio track:', audioTrack.sid)
         audioTrack.detach()
       }
     }
