@@ -90,7 +90,7 @@ A real-time voice streaming application that combines AI-powered text-to-speech 
 5. As guest:
    - Join using a room code
    - Listen to the streamed audio
-   - See real-time audio visualization
+   - See real-time audio visualization (WIP)
 
 ## LiveKit Implementation Details
 
@@ -105,29 +105,7 @@ The application uses LiveKit for real-time communication:
 ## Demo & Screenshots
 
 ### 🎥 Video Demo
-[![AI Voice Streaming Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
-
-### 📸 Screenshots & Features
-
-#### Landing Page
-![Landing Page](./public/screenshots/landing.png)
-*Modern landing page with LiveKit-inspired design and clear call-to-actions*
-
-#### Room Creation
-![Room Creation](./public/screenshots/room-creation.gif)
-*Seamless room creation with real-time feedback and animations*
-
-#### Voice Generation & Streaming
-![Voice Generation](./public/screenshots/voice-generation.gif)
-*AI text-to-speech generation with live audio visualization*
-
-#### Multi-participant Experience
-![Multi-participant](./public/screenshots/participants.png)
-*Real-time participant tracking and audio streaming between users*
-
-#### Audio Visualization
-![Audio Visualization](./public/screenshots/audio-viz.gif)
-*Dynamic waveform visualization responding to audio input/output*
+[![AI Voice Streaming Demo](https://img.youtube.com/vi/xQkawNU9kQs/0.jpg)](https://www.youtube.com/watch?v=xQkawNU9kQs)
 
 ## Contributing
 
@@ -137,9 +115,6 @@ The application uses LiveKit for real-time communication:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
