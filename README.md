@@ -2,6 +2,11 @@
 
 A real-time voice streaming application that combines AI-powered text-to-speech with LiveKit's real-time communication infrastructure. Create rooms, generate AI speech, and stream it to multiple participants in real-time.
 
+<div align="center">
+  <img src="./public/LiveKit Landing Page hero.png" alt="Landing Page" width="600"/>
+  <p><em>Landing Page Hero Section - LiveKit</em></p>
+</div>
+
 ## Features
 
 - 🎙️ Real-time voice streaming using LiveKit
@@ -10,6 +15,14 @@ A real-time voice streaming application that combines AI-powered text-to-speech 
 - 🏠 Room-based communication
 - 👥 Multi-participant support
 - 🎨 Modern UI with Tailwind CSS and Shadcn/ui
+
+### Video Demo
+[![AI Voice Streaming Demo](https://img.youtube.com/vi/xQkawNU9kQs/0.jpg)](https://www.youtube.com/watch?v=xQkawNU9kQs)
+
+<div align="center">
+  <img src="./public/Realtime communication-two users.png" alt="Landing Page" width="600"/>
+  <p><em>Realtime communication between two users</em></p>
+</div>
 
 ## Tech Stack
 
@@ -24,10 +37,20 @@ A real-time voice streaming application that combines AI-powered text-to-speech 
 
 ## How It Works
 
+<div align="center">
+  <img src="./public/LiveKit meet page.png" alt="Landing Page" width="600"/>
+  <p><em>Meeting Entry - Create room or Join room</em></p>
+</div>
+
 1. **LiveKit Integration**:
    - Uses LiveKit for real-time audio streaming between participants
    - Handles room creation, joining, and participant management
    - Manages audio track publishing and subscription
+
+<div align="center">
+  <img src="./public/audio visualization-guest-host.png" alt="Landing Page" width="600"/>
+  <p><em>Audio visualization - Guest and Host</em></p>
+</div>
 
 2. **Audio Pipeline**:
    - Converts text to speech using Web Speech API
@@ -35,10 +58,20 @@ A real-time voice streaming application that combines AI-powered text-to-speech 
    - Visualizes audio waveforms in real-time
    - Streams processed audio to all participants
 
+<div align="center">
+  <img src="./public/MeetRoom-host-joined.png" alt="Landing Page" width="600"/>
+  <p><em>Meeting Room - Host joined</em></p>
+</div>
+
 3. **Room Management**:
    - Create new rooms or join existing ones
    - Automatic host/guest role assignment
    - Real-time participant tracking
+
+<div align="center">
+  <img src="./public/Audio visualization-host audio AI.png" alt="Landing Page" width="600"/>
+  <p><em>Audio visualization - AI Host audio</em></p>
+</div>
 
 ## Getting Started
 
@@ -87,6 +120,12 @@ A real-time voice streaming application that combines AI-powered text-to-speech 
 4. As host:
    - Type text in the input field
    - Click "Generate Voice" to synthesize and stream audio
+
+<div align="center">
+  <img src="./public/AI prompt message to generate voice.png" alt="Landing Page" width="600"/>
+  <p><em>AI prompt message to generate voice</em></p>
+</div>
+
 5. As guest:
    - Join using a room code
    - Listen to the streamed audio
@@ -102,10 +141,10 @@ The application uses LiveKit for real-time communication:
 - **Connection Management**: Handles reconnection and disconnection
 - **Participant Tracking**: Real-time updates of room participants
 
-## Demo & Screenshots
-
-### 🎥 Video Demo
-[![AI Voice Streaming Demo](https://img.youtube.com/vi/xQkawNU9kQs/0.jpg)](https://www.youtube.com/watch?v=xQkawNU9kQs)
+<div align="center">
+  <img src="./public/Console log - guest side- track subscribed to guest.png" alt="Landing Page" width="600"/>
+  <p><em>Console log - guest side- track subscribed to host audio</em></p>
+</div>
 
 ## Contributing
 
